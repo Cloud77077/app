@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 @Composable fun ColumnScope.FileBrowser(root:File,onOpen:(File)->Unit,onError:(String)->Unit) {
  var directory by remember { mutableStateOf(root) }
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
  LaunchedEffect(query,refresh) {
   busy=true
   try { matches=withContext(Dispatchers.IO) { WorkspaceFiles.search(root,query) } }
+  catch(e:CancellationException) { throw e }
   catch(e:Exception) { onError(e.message?:"Search failed") }
   finally { busy=false }
  }
@@ -48,9 +50,10 @@ import kotlinx.coroutines.withContext
   }catch(e:Exception){onError(e.message?:"Create failed")}}) { Text(if(folder)"New folder" else "New file") } } }
   LazyColumn(Modifier.weight(1f)) { items(files,key={it.absolutePath}) { file ->
    Row {
-    TextButton(modifier=Modifier.weight(1f),onClick={
-     if(!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) onError("Path is outside the workspace")
-     else if(file.isDirectory) directory=file else onOpen(file)
+    TextButton(modifier=Modifier.weight(1f),onClick={try {
+     require(file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) { "Path is outside the workspace" }
+     if(file.isDirectory) directory=file else onOpen(file)
+    }catch(e:Exception){onError(e.message?:"Cannot open file")}
     }) { Text((if(file.isDirectory)"▸ " else "")+file.name) }
     TextButton(onClick={action=file}) { Text("⋮") }
    }

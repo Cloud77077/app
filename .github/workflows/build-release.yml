@@ -39,6 +39,30 @@ jobs:
           target: default
           disable-animations: true
           script: ./gradlew connectedDebugAndroidTest --no-daemon --max-workers=2
+      - name: Summarize Android results
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, os, pathlib, xml.etree.ElementTree as ET
+          paths = list(pathlib.Path('app/build/outputs/androidTest-results').rglob('TEST-*.xml'))
+          totals = dict(tests=0, failures=0, errors=0, skipped=0)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## Android API ${{ matrix.api }} results\n\n')
+              for path in paths:
+                  root = ET.parse(path).getroot()
+                  for suite in root.iter('testsuite'):
+                      for key in totals:
+                          totals[key] += int(suite.get(key, '0'))
+                  for case in root.iter('testcase'):
+                      for failure in list(case.findall('failure')) + list(case.findall('error')):
+                          summary.write('### ' + html.escape(case.get('name', 'Unknown test')) + '\n\n<pre>' + html.escape((failure.text or failure.get('message', ''))[:12000]) + '</pre>\n\n')
+              summary.write(' | '.join(f'{key}: {value}' for key, value in totals.items()) + '\n')
+              if not paths:
+                  summary.write('\nNo JUnit result files were produced; inspect runner setup logs.\n')
+          if totals['tests'] < 2 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
+              raise SystemExit('Both Android smoke tests must execute and pass')
+          PY
       - name: Upload device test results
         if: always()
         uses: actions/upload-artifact@v4
