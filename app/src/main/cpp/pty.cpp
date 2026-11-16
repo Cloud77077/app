@@ -13,15 +13,21 @@ extern "C" JNIEXPORT jintArray JNICALL Java_dev_nexterm_Pty_open(JNIEnv* e,jobje
  if(fd<0 || grantpt(fd)!=0 || unlockpt(fd)!=0) { if(fd>=0)close(fd); e->ReleaseStringUTFChars(dir,path); return nullptr; }
  char slave[256];
  if(ptsname_r(fd,slave,sizeof(slave))!=0){close(fd);e->ReleaseStringUTFChars(dir,path);return nullptr;}
+ // Keep a slave descriptor open across fork. Otherwise the parent's first
+ // nonblocking read can see EIO before the child gets scheduled to open it.
+ int s=::open(slave,O_RDWR|O_NOCTTY|O_CLOEXEC);
+ if(s<0){close(fd);e->ReleaseStringUTFChars(dir,path);return nullptr;}
  pid_t pid=fork();
  if(pid==0){
-  setsid(); int s=::open(slave,O_RDWR);
-  if(s<0)_exit(126);
-  ioctl(s,TIOCSCTTY,0); dup2(s,0);dup2(s,1);dup2(s,2);if(s>2)close(s);close(fd);
+  if(setsid()<0 || ioctl(s,TIOCSCTTY,0)<0)_exit(126);
+  fcntl(s,F_SETFD,0);
+  if(dup2(s,0)<0 || dup2(s,1)<0 || dup2(s,2)<0)_exit(126);
+  if(s>2)close(s);close(fd);
   if(chdir(path)!=0)_exit(126);
   setenv("HOME",path,1);setenv("TERM","xterm-256color",1);
   execl("/system/bin/sh","sh","-i",nullptr);_exit(127);
  }
+ ::close(s);
  e->ReleaseStringUTFChars(dir,path);
  if(pid<0){close(fd);return nullptr;}
  fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);

@@ -80,6 +80,7 @@ class AndroidSmokeTest {
    fail("Missing expected PTY output: $expected; received $diagnostic")
   }
   try {
+   assertNotNull("PTY must remain open while the child starts",Pty.read(h[0]))
    send("trap 'printf \"RESIZE_%s\\n\" ok' WINCH; printf 'SHELL_%s\\n' ready\r")
    await("SHELL_ready")
    Pty.resize(h[0],33,91)
