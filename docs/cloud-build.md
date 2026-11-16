@@ -14,4 +14,4 @@ export JAVA_TOOL_OPTIONS='-Dhttps.proxyHost=proxy -Dhttps.proxyPort=8080 -Dhttp.
 ./gradlew assembleDebug assembleRelease bundleRelease testDebugUnitTest lintDebug --no-daemon --max-workers=4
 ```
 
-These proxy names are specific to this environment. On other machines, use their normal Android Studio/SDK setup. No signing credentials are stored here. No emulator or Android device has been connected, and no application behavior has been validated on a device. The GitHub API returned `Forbidden`; the new NexTerm repository was not created and the existing `origin` remains Cloud77077/app.
+These proxy names are specific to this environment. On other machines, use their normal Android Studio/SDK setup. No signing credentials are stored here. No emulator or Android device has been connected, and no application behavior has been validated on a device. The GitHub API returned `Forbidden`, but authenticated Git push succeeded. Source is published on the main branch of Cloud77077/app. Release workflow execution has not been verified.

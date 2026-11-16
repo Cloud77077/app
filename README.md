@@ -1,12 +1,12 @@
 ![NexTerm — Your pocket Linux workstation](docs/banner.svg)
 
-[![Build](https://github.com/Cloud77077/NexTerm/actions/workflows/build-release.yml/badge.svg)](https://github.com/Cloud77077/NexTerm/actions)
+[![Build](https://github.com/Cloud77077/app/actions/workflows/build-release.yml/badge.svg)](https://github.com/Cloud77077/app/actions)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-00b4ff)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-[![Release](https://img.shields.io/github/v/release/Cloud77077/NexTerm?include_prereleases)](https://github.com/Cloud77077/NexTerm/releases)
-[![Stars](https://img.shields.io/github/stars/Cloud77077/NexTerm)](https://github.com/Cloud77077/NexTerm)
+[![Release](https://img.shields.io/github/v/release/Cloud77077/app?include_prereleases)](https://github.com/Cloud77077/app/releases)
+[![Stars](https://img.shields.io/github/stars/Cloud77077/app)](https://github.com/Cloud77077/app)
 
-**Development implementation, not a production release.** The requested Termux/VS Code equivalent is not complete. Repository links above describe the intended destination; repository creation and release publication have not been verified.
+**Development implementation, not a production release.** The requested Termux/VS Code equivalent is not complete. Source is published at Cloud77077/app. Automated signed release publication has not been verified.
 
 ## Contents
 - [Features and status](#features-and-status)
@@ -65,9 +65,8 @@ SSH client/server, key storage and forwarding are not yet implemented. Do not st
 Prerequisites: JDK 17 or 21, Android SDK platform 35/build-tools 35.0.0, NDK 27.0.12077973, CMake 3.22.1. Open this directory in Android Studio and let Gradle sync, or run:
 
 ```sh
-# After the intended GitHub repository has been created:
-git clone https://github.com/Cloud77077/NexTerm.git
-cd NexTerm
+git clone https://github.com/Cloud77077/app.git
+cd app
 sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
 ./gradlew assembleDebug
 ./gradlew assembleRelease bundleRelease
