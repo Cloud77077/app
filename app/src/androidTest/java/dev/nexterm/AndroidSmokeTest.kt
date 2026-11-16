@@ -46,6 +46,8 @@ class AndroidSmokeTest {
   app.onAllNodes(hasSetTextAction()).onLast().performTextInput("hello λ 🌍")
   app.onNodeWithText("Save").performClick()
   assertEquals("hello λ 🌍",File(app.activity.filesDir,"workspace/smoke.txt").readText())
+  app.waitUntil(15000) { app.onAllNodesWithText("Terminal",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty() }
+  app.onNodeWithText("Terminal",useUnmergedTree=true).assertIsDisplayed()
   app.onNodeWithText("Terminal",useUnmergedTree=true).performClick()
   app.onNodeWithText("Close",substring=false).performClick()
   app.onNodeWithText("Open terminal").assertExists()
