@@ -6,14 +6,18 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Before
+import org.junit.FixMethodOrder
+import org.junit.runners.MethodSorters
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import android.os.ParcelFileDescriptor
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
+import android.app.ActivityManager
 
 @RunWith(AndroidJUnit4::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class AndroidSmokeTest {
  @get:Rule val app=createAndroidComposeRule<MainActivity>()
  @Before fun prepareInteractiveDevice() {
@@ -24,8 +28,13 @@ class AndroidSmokeTest {
   app.runOnIdle { app.activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
  }
 
- @Test fun shellRendersColorAndEditorSavesUnicode() {
+ @Test fun aColdShellRendersColorAndEditorSavesUnicode() {
   app.onNodeWithText("Open terminal").performClick()
+  app.waitUntil(60000) { app.onAllNodesWithText("Shell input").fetchSemanticsNodes().isNotEmpty() }
+  app.runOnIdle {
+   val manager=app.activity.getSystemService(ActivityManager::class.java)
+   assertTrue("Terminal service must be foreground before shell input appears",manager.getRunningServices(20).any { it.service.className==TerminalService::class.java.name && it.foreground })
+  }
   app.onNodeWithText("Shell input").performTextInput("printf '\\033[31m%s_OK\\033[0m\\n' NEXTERM")
   app.onNodeWithText("Send").assertIsDisplayed()
   app.onNodeWithText("Send").performClick()

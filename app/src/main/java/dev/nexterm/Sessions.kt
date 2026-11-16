@@ -61,8 +61,18 @@ class Session(val id: Int, directory: File) {
 }
 object Sessions {
  val items=mutableStateListOf<Session>()
+ var starting by mutableStateOf(false)
+ var error by mutableStateOf<String?>(null)
+ var lastCreatedId by mutableIntStateOf(0); private set
  private var next=1
- fun create(directory:File):Session=Session(next++,directory).also{items.add(it)}
+ suspend fun create(directory:File):Session {
+  val id=next++
+  var created:Session?=null
+  try {
+   withContext(Dispatchers.IO) { created=Session(id,directory) }
+   return requireNotNull(created).also { items.add(it);lastCreatedId=it.id }
+  }catch(e:Throwable){created?.close();throw e}
+ }
  fun close(session:Session){session.close();items.remove(session)}
  fun closeAll(){items.toList().forEach{close(it)}}
 }

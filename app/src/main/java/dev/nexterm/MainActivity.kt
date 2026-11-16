@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
    pendingFile?.let { file -> AlertDialog(onDismissRequest={pendingFile=null},title={Text("Discard unsaved edits?")},text={Text("The current file has unsaved changes.")},confirmButton={TextButton(onClick={opened=EditorDocument(file);pendingFile=null;page="Editor"}){Text("Discard and open")}},dismissButton={TextButton(onClick={pendingFile=null}){Text("Cancel")}}) }
 
    var error by remember { mutableStateOf<String?>(null) }
+   LaunchedEffect(Sessions.lastCreatedId) { Sessions.items.find{it.id==Sessions.lastCreatedId}?.let{selected=it} }
+   LaunchedEffect(Sessions.error) { Sessions.error?.let{error=it;Sessions.error=null} }
    val importFile=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
     if(uri!=null) try {
      val bytes=contentResolver.openInputStream(uri)!!.use { input ->
@@ -64,15 +66,22 @@ class MainActivity : ComponentActivity() {
    val exportFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
     if(uri!=null) try { contentResolver.openOutputStream(uri)!!.use { it.write(exportText.toByteArray()) } }catch(e:Exception){error=e.message}
    }
-   fun newSession() { try {
-    val session=Sessions.create(workspace)
-    try { startForegroundService(Intent(this@MainActivity,TerminalService::class.java));selected=session }
-    catch(e:Exception) { Sessions.close(session);throw e }
-   }catch(e:Exception){error=e.message} }
+   fun newSession(command:String?=null) {
+    if(Sessions.starting) return
+    try {
+     TerminalService.prepare(this@MainActivity)
+     Sessions.starting=true
+     startForegroundService(Intent(this@MainActivity,TerminalService::class.java)
+      .setAction(TerminalService.ACTION_NEW_SESSION).putExtra(TerminalService.EXTRA_DIRECTORY,workspace.absolutePath)
+      .putExtra(TerminalService.EXTRA_COMMAND,command))
+    }catch(e:Exception){Sessions.starting=false;error=e.message}
+   }
    var palette by remember { mutableStateOf(false) }
    if(palette) CommandPalette(preferences,{page=it},{newSession();page="Terminal"},{command ->
-    if(selected?.running!=true) newSession()
-    selected?.send(command+"\r");page="Terminal"
+    if(selected?.running==true) selected?.send(command+"\r")
+    else if(!Sessions.starting) newSession(command)
+    else error="Wait for the shell to finish starting before running a snippet"
+    page="Terminal"
    },{palette=false})
    Scaffold(containerColor=MaterialTheme.colorScheme.background,bottomBar={if(!keyboardVisible) NavigationBar { listOf("Terminal","Editor","Files","Git","Settings").forEach { label ->
     NavigationBarItem(selected=page==label,onClick={page=label},icon={Text(when(label){"Terminal"->">_";"Editor"->"{}";"Files"->"▤";"Git"->"⑂";else->"⚙"})},label={Text(label)})
@@ -96,10 +105,10 @@ class MainActivity : ComponentActivity() {
       "Terminal" -> {
        if(!keyboardVisible) Row(Modifier.horizontalScroll(rememberScrollState())) {
         Sessions.items.forEach { s -> TextButton(onClick={selected=s}){Text(if(s==selected)"● ${s.name}" else s.name)} }
-        TextButton(onClick={newSession()}){Text("+ New")}
+        TextButton(onClick={newSession()},enabled=!Sessions.starting){Text("+ New")}
        }
        val session=selected
-       if(session==null) { Text("Start a shell in your private workspace.");Button(onClick={newSession()}){Text("Open terminal")} }
+       if(session==null) { Text(if(Sessions.starting)"Starting shell…" else "Start a shell in your private workspace.");Button(onClick={newSession()},enabled=!Sessions.starting){Text("Open terminal")} }
        else {
         var title by remember(session.id) { mutableStateOf(session.name) }
         var editingTitle by remember(session.id) { mutableStateOf(false) }
