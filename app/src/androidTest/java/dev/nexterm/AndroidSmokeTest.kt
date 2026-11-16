@@ -54,11 +54,14 @@ class AndroidSmokeTest {
    fail("Missing expected PTY output: $expected; received ${output.toString("UTF-8")}")
   }
   try {
-   send("stty -echo\r");Thread.sleep(200);output.reset()
+   send("trap 'printf \"RESIZE_%s\\n\" ok' WINCH; printf 'SHELL_%s\\n' ready\r")
+   await("SHELL_ready")
    Pty.resize(h[0],33,91)
-   send("stty size; printf '\\316\\273\\360\\237\\214\\215\\n'\r")
-   await("33 91");await("λ🌍")
-   send("sleep 30\r");Thread.sleep(300);send("\u0003");send("printf 'INTERRUPT_OK\\n'\r");await("INTERRUPT_OK")
+   assertArrayEquals(intArrayOf(33,91),Pty.size(h[0]))
+   await("RESIZE_ok")
+   send("printf '\\316\\273\\360\\237\\214\\215\\n'\r")
+   await("λ🌍")
+   send("sleep 30\r");Thread.sleep(300);send("\u0003");send("printf 'INTERRUPT_%s\\n' OK\r");await("INTERRUPT_OK")
    send("exit\r")
    val deadline=System.currentTimeMillis()+10000
    var ended=false

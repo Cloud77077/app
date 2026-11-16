@@ -38,4 +38,5 @@ extern "C" JNIEXPORT jint JNICALL Java_dev_nexterm_Pty_write(JNIEnv* e,jobject,j
  e->ReleaseByteArrayElements(data,b,JNI_ABORT);return offset;
 }
 extern "C" JNIEXPORT void JNICALL Java_dev_nexterm_Pty_resize(JNIEnv*,jobject,jint fd,jint rows,jint cols){winsize w{};w.ws_row=rows;w.ws_col=cols;ioctl(fd,TIOCSWINSZ,&w);}
+extern "C" JNIEXPORT jintArray JNICALL Java_dev_nexterm_Pty_size(JNIEnv* e,jobject,jint fd){winsize w{};if(ioctl(fd,TIOCGWINSZ,&w)!=0)return nullptr;jint values[]={w.ws_row,w.ws_col};auto result=e->NewIntArray(2);e->SetIntArrayRegion(result,0,2,values);return result;}
 extern "C" JNIEXPORT void JNICALL Java_dev_nexterm_Pty_close(JNIEnv*,jobject,jint fd,jint pid){kill(-pid,SIGKILL);kill(pid,SIGKILL);::close(fd);std::thread([pid](){int status;while(waitpid(pid,&status,0)<0&&errno==EINTR){}}).detach();}

@@ -5,5 +5,6 @@ object Pty {
  external fun read(fd: Int): ByteArray?
  external fun write(fd: Int, data: ByteArray): Int
  external fun resize(fd: Int, rows: Int, cols: Int)
+ external fun size(fd: Int): IntArray?
  external fun close(fd: Int, pid: Int)
 }

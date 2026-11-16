@@ -38,7 +38,7 @@ jobs:
           arch: x86_64
           target: default
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --no-daemon --max-workers=2
+          script: bash -o pipefail -c './gradlew connectedDebugAndroidTest --no-daemon --max-workers=2 2>&1 | tee /tmp/nexterm-android-test.log'
       - name: Summarize Android results
         if: always()
         shell: bash
@@ -56,9 +56,17 @@ jobs:
                           totals[key] += int(suite.get(key, '0'))
                   for case in root.iter('testcase'):
                       for failure in list(case.findall('failure')) + list(case.findall('error')):
+                          message = (failure.get('message') or failure.text or 'Unknown test failure').splitlines()[0]
+                          message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                          print(f"::error title=Android API ${{ matrix.api }} test::{case.get('name', 'Unknown')}: {message}")
                           summary.write('### ' + html.escape(case.get('name', 'Unknown test')) + '\n\n<pre>' + html.escape((failure.text or failure.get('message', ''))[:12000]) + '</pre>\n\n')
               summary.write(' | '.join(f'{key}: {value}' for key, value in totals.items()) + '\n')
               if not paths:
+                  print('::error::No Android JUnit files were produced; failure occurred before test results were available')
+                  log = pathlib.Path('/tmp/nexterm-android-test.log')
+                  if log.exists():
+                      tail = '\n'.join(log.read_text(errors='replace').splitlines()[-40:])[-8000:]
+                      print('::error title=Android runner output::' + tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
                   summary.write('\nNo JUnit result files were produced; inspect runner setup logs.\n')
           if totals['tests'] < 2 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
               raise SystemExit('Both Android smoke tests must execute and pass')
