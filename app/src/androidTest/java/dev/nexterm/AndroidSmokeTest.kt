@@ -5,17 +5,29 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Rule
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import android.os.ParcelFileDescriptor
+import android.view.WindowManager
+import androidx.test.platform.app.InstrumentationRegistry
 
 @RunWith(AndroidJUnit4::class)
 class AndroidSmokeTest {
  @get:Rule val app=createAndroidComposeRule<MainActivity>()
+ @Before fun prepareInteractiveDevice() {
+  val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+  listOf("input keyevent KEYCODE_WAKEUP","wm dismiss-keyguard").forEach { command ->
+   ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).use { it.readBytes() }
+  }
+  app.runOnIdle { app.activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+ }
 
  @Test fun shellRendersColorAndEditorSavesUnicode() {
   app.onNodeWithText("Open terminal").performClick()
   app.onNodeWithText("Shell input").performTextInput("printf '\\033[31m%s_OK\\033[0m\\n' NEXTERM")
+  app.onNodeWithText("Send").assertIsDisplayed()
   app.onNodeWithText("Send").performClick()
   app.waitUntil(15000) { app.onAllNodesWithText("NEXTERM_OK",substring=true).fetchSemanticsNodes().isNotEmpty() }
   app.onNodeWithText("Files",useUnmergedTree=true).performClick()
@@ -51,15 +63,18 @@ class AndroidSmokeTest {
     if(output.toString("UTF-8").contains(expected)) return
     Thread.sleep(10)
    }
-   fail("Missing expected PTY output: $expected; received ${output.toString("UTF-8")}")
+   val diagnostic=buildString { output.toString("UTF-8").takeLast(12000).forEach { ch ->
+    if(ch<' ' && ch !in "\n\r\t") append("\\u%04x".format(ch.code)) else append(ch)
+   } }
+   fail("Missing expected PTY output: $expected; received $diagnostic")
   }
   try {
    send("trap 'printf \"RESIZE_%s\\n\" ok' WINCH; printf 'SHELL_%s\\n' ready\r")
    await("SHELL_ready")
    Pty.resize(h[0],33,91)
    assertArrayEquals(intArrayOf(33,91),Pty.size(h[0]))
-   await("RESIZE_ok")
    send("printf '\\316\\273\\360\\237\\214\\215\\n'\r")
+   await("RESIZE_ok")
    await("λ🌍")
    send("sleep 30\r");Thread.sleep(300);send("\u0003");send("printf 'INTERRUPT_%s\\n' OK\r");await("INTERRUPT_OK")
    send("exit\r")

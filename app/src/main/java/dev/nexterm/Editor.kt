@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import java.io.File
 import androidx.lifecycle.ViewModel
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 class WorkspaceState:ViewModel() {
  var document by mutableStateOf<EditorDocument?>(null)
@@ -38,7 +39,8 @@ class EditorDocument(val file:File) {
  var find by remember { mutableStateOf("") }
  var replacement by remember { mutableStateOf("") }
  var searching by remember { mutableStateOf(false) }
- fun save() { try { document.save() } catch(e:Exception) { onError(e.message?:"Save failed") } }
+ val keyboard=LocalSoftwareKeyboardController.current
+ fun save() { try { document.save();keyboard?.hide() } catch(e:Exception) { onError(e.message?:"Save failed") } }
  Column(Modifier.onPreviewKeyEvent { event ->
   if(event.type==KeyEventType.KeyDown && event.isCtrlPressed) when(event.key) {
    Key.S -> { save();true }

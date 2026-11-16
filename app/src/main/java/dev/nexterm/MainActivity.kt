@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import java.io.File
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.onFocusChanged
 
 class MainActivity : ComponentActivity() {
  override fun onCreate(savedInstanceState:Bundle?) {
@@ -34,6 +36,7 @@ class MainActivity : ComponentActivity() {
    val prefs=getSharedPreferences("settings",MODE_PRIVATE)
    var useLight by remember { mutableStateOf(prefs.getBoolean("light",false)) }
    MaterialTheme(colorScheme=if(useLight) lightColorScheme() else darkColorScheme(primary=Color(0xff00b4ff), background=Color(0xff0a0a1a))) {
+   val keyboardVisible=WindowInsets.ime.getBottom(LocalDensity.current)>0
    val workspaceState:WorkspaceState=viewModel()
    var page by workspaceState::page
    var selected by remember { mutableStateOf<Session?>(Sessions.items.firstOrNull()) }
@@ -71,25 +74,27 @@ class MainActivity : ComponentActivity() {
     if(selected?.running!=true) newSession()
     selected?.send(command+"\r");page="Terminal"
    },{palette=false})
-   Scaffold(containerColor=MaterialTheme.colorScheme.background,bottomBar={NavigationBar { listOf("Terminal","Editor","Files","Git","Settings").forEach { label ->
+   Scaffold(containerColor=MaterialTheme.colorScheme.background,bottomBar={if(!keyboardVisible) NavigationBar { listOf("Terminal","Editor","Files","Git","Settings").forEach { label ->
     NavigationBarItem(selected=page==label,onClick={page=label},icon={Text(when(label){"Terminal"->">_";"Editor"->"{}";"Files"->"▤";"Git"->"⑂";else->"⚙"})},label={Text(label)})
    }}}) { padding ->
     Column(Modifier.fillMaxSize().padding(padding).padding(12.dp).imePadding().onPreviewKeyEvent {
      if(it.type==KeyEventType.KeyDown && it.isCtrlPressed && it.isShiftPressed && it.key==Key.P) {palette=true;true} else false
     }) {
-     Row { Text("NexTerm",Modifier.weight(1f),style=MaterialTheme.typography.headlineMedium,color=MaterialTheme.colorScheme.primary)
+     if(!keyboardVisible) {
+      Row { Text("NexTerm",Modifier.weight(1f),style=MaterialTheme.typography.headlineMedium,color=MaterialTheme.colorScheme.primary)
       TextButton(onClick={palette=true}) { Text("Commands") }
      }
      Text("Android shell and workspace editor",style=MaterialTheme.typography.labelMedium)
      Spacer(Modifier.height(16.dp))
-     if(page=="Files" || page=="Editor") Row {
+     }
+     if(!keyboardVisible && (page=="Files" || page=="Editor")) Row {
       TextButton(onClick={importFile.launch(arrayOf("text/*","application/json","application/octet-stream"))}) { Text("Import file") }
       opened?.let { document -> TextButton(onClick={exportText=document.content;exportFile.launch(document.file.name)}) { Text("Export editor") } }
      }
      error?.let { Text(it,color=MaterialTheme.colorScheme.error);TextButton(onClick={error=null}){Text("Dismiss")} }
      when(page){
       "Terminal" -> {
-       Row(Modifier.horizontalScroll(rememberScrollState())) {
+       if(!keyboardVisible) Row(Modifier.horizontalScroll(rememberScrollState())) {
         Sessions.items.forEach { s -> TextButton(onClick={selected=s}){Text(if(s==selected)"● ${s.name}" else s.name)} }
         TextButton(onClick={newSession()}){Text("+ New")}
        }
@@ -97,7 +102,8 @@ class MainActivity : ComponentActivity() {
        if(session==null) { Text("Start a shell in your private workspace.");Button(onClick={newSession()}){Text("Open terminal")} }
        else {
         var title by remember(session.id) { mutableStateOf(session.name) }
-        Row { OutlinedTextField(title,{title=it;session.name=it},Modifier.weight(1f),singleLine=true,label={Text("Session name")})
+        var editingTitle by remember(session.id) { mutableStateOf(false) }
+        if(!keyboardVisible || editingTitle) Row { OutlinedTextField(title,{title=it;session.name=it},Modifier.weight(1f).onFocusChanged{editingTitle=it.isFocused},singleLine=true,label={Text("Session name")})
          TextButton(onClick={Sessions.close(session);selected=Sessions.items.firstOrNull();if(Sessions.items.isEmpty())stopService(Intent(this@MainActivity,TerminalService::class.java))}){Text("Close")}
         }
         var terminalFont by remember { mutableFloatStateOf(preferences.getFloat("fontSize",13f)) }

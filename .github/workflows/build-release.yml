@@ -58,7 +58,10 @@ jobs:
                       for failure in list(case.findall('failure')) + list(case.findall('error')):
                           message = (failure.get('message') or failure.text or 'Unknown test failure').splitlines()[0]
                           message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-                          print(f"::error title=Android API ${{ matrix.api }} test::{case.get('name', 'Unknown')}: {message}")
+                          detail = failure.text or failure.get('message', '')
+                          detail = detail[:2000] + ('\n...\n' + detail[-3500:] if len(detail)>2000 else '')
+                          detail = detail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                          print(f"::error title=Android API ${{ matrix.api }} test::{case.get('name', 'Unknown')}: {message}%0A{detail}")
                           summary.write('### ' + html.escape(case.get('name', 'Unknown test')) + '\n\n<pre>' + html.escape((failure.text or failure.get('message', ''))[:12000]) + '</pre>\n\n')
               summary.write(' | '.join(f'{key}: {value}' for key, value in totals.items()) + '\n')
               if not paths:
