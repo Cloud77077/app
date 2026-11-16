@@ -24,16 +24,18 @@ extern "C" JNIEXPORT jintArray JNICALL Java_dev_nexterm_Pty_open(JNIEnv* e,jobje
  }
  e->ReleaseStringUTFChars(dir,path);
  if(pid<0){close(fd);return nullptr;}
+ fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);
  jint values[]={fd,pid};auto result=e->NewIntArray(2);e->SetIntArrayRegion(result,0,2,values);return result;
 }
 extern "C" JNIEXPORT jbyteArray JNICALL Java_dev_nexterm_Pty_read(JNIEnv* e,jobject,jint fd){
  char b[8192];ssize_t n;do {n=::read(fd,b,sizeof(b));}while(n<0&&errno==EINTR);
+ if(n<0&&(errno==EAGAIN||errno==EWOULDBLOCK))return e->NewByteArray(0);
  if(n<=0)return nullptr;auto a=e->NewByteArray(n);e->SetByteArrayRegion(a,0,n,reinterpret_cast<jbyte*>(b));return a;
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_dev_nexterm_Pty_write(JNIEnv* e,jobject,jint fd,jbyteArray data){
+extern "C" JNIEXPORT jint JNICALL Java_dev_nexterm_Pty_write(JNIEnv* e,jobject,jint fd,jbyteArray data){
  auto n=e->GetArrayLength(data);auto b=e->GetByteArrayElements(data,nullptr);int offset=0;
- while(offset<n){auto r=::write(fd,b+offset,n-offset);if(r<0&&errno==EINTR)continue;if(r<=0)break;offset+=r;}
- e->ReleaseByteArrayElements(data,b,JNI_ABORT);return offset==n;
+ while(offset<n){auto r=::write(fd,b+offset,n-offset);if(r<0&&errno==EINTR)continue;if(r<0&&(errno==EAGAIN||errno==EWOULDBLOCK))break;if(r<=0){offset=-1;break;}offset+=r;}
+ e->ReleaseByteArrayElements(data,b,JNI_ABORT);return offset;
 }
 extern "C" JNIEXPORT void JNICALL Java_dev_nexterm_Pty_resize(JNIEnv*,jobject,jint fd,jint rows,jint cols){winsize w{};w.ws_row=rows;w.ws_col=cols;ioctl(fd,TIOCSWINSZ,&w);}
-extern "C" JNIEXPORT void JNICALL Java_dev_nexterm_Pty_close(JNIEnv*,jobject,jint fd,jint pid){kill(-pid,SIGKILL);::close(fd);std::thread([pid](){int status;while(waitpid(pid,&status,0)<0&&errno==EINTR){}}).detach();}
+extern "C" JNIEXPORT void JNICALL Java_dev_nexterm_Pty_close(JNIEnv*,jobject,jint fd,jint pid){kill(-pid,SIGKILL);kill(pid,SIGKILL);::close(fd);std::thread([pid](){int status;while(waitpid(pid,&status,0)<0&&errno==EINTR){}}).detach();}

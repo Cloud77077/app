@@ -4,8 +4,9 @@ android {
  compileSdk = 35
  defaultConfig {
   applicationId = "dev.nexterm"; minSdk = 26; targetSdk = 35
+  testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   versionCode = providers.environmentVariable("VERSION_CODE").orElse("1").get().toInt()
-  versionName = providers.environmentVariable("VERSION_NAME").orElse("1.0.0").get()
+  versionName = providers.environmentVariable("VERSION_NAME").orElse("0.2.0-dev").get()
   externalNativeBuild { cmake { cppFlags += "-std=c++17" } }
  }
  signingConfigs { create("release") {
@@ -26,4 +27,9 @@ dependencies {
  implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
  testImplementation("junit:junit:4.13.2")
+ androidTestImplementation("androidx.test:runner:1.6.2")
+ androidTestImplementation("androidx.test.ext:junit:1.2.1")
+ androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
+ androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+ debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
